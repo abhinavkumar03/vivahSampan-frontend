@@ -1,23 +1,71 @@
+// src/lib/api.ts
 import ky from 'ky';
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080';
-
-export const api = ky.create({
-  prefixUrl: API_BASE,
-  credentials: 'include', // if your Spring Boot sets HttpOnly cookies
-  hooks: {
-    beforeRequest: [
-      request => {
-        // Example: attach bearer token later if you store it in localStorage (not recommended) or cookies
-        // const token = localStorage.getItem('token');
-        // if (token) request.headers.set('Authorization', `Bearer ${token}`);
-      },
-    ],
+const api = ky.create({
+  prefixUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001', // Nest API URL
+  headers: {
+    'Content-Type': 'application/json',
   },
+  credentials: 'include',
 });
 
-// Easy wrappers
-export const postJson = <T>(url: string, json: unknown) =>
+export const postJson = <T>(url: string, json?: any) =>
   api.post(url, { json }).json<T>();
+
 export const getJson = <T>(url: string) =>
   api.get(url).json<T>();
+
+export default api;
+
+// --- AUTH ---
+export const sendOtp = (identifier: { email?: string; phone?: string }) =>
+  postJson<{ success: boolean; message: string }>('auth/send-otp', identifier);
+
+export const verifyOtp = (payload: { email?: string; phone?: string; otp: string }) =>
+  postJson<{ success: boolean; message: string; access_token?: string }>('auth/verify-otp', payload);
+
+export const loginOtp = (email: string, otp: string) =>
+  postJson<{ access_token: string }>('auth/login-otp', { email, otp });
+
+export const loginSocial = (provider: string, token: string) =>
+  postJson<{ access_token: string }>('auth/login-social', { provider, token });
+
+export const validateToken = (token: string) =>
+  postJson<any>('auth/validate', { token });
+
+export const logout = (jwt: string) =>
+  api.post('auth/logout', { headers: { Authorization: `Bearer ${jwt}` } }).json<{ success: boolean }>();
+
+// --- AUTHORIZATION ---
+export const checkAccess = (userId: string | number, resourceId: string | number, jwt: string) =>
+  api.get(`auth/authorize/${userId}/${resourceId}`, { headers: { Authorization: `Bearer ${jwt}` } }).json<{ result: string }>();
+
+// --- USER ---
+export const createUser = (data: any, jwt?: string) =>
+  api.post('user', { json: data, headers: jwt ? { Authorization: `Bearer ${jwt}` } : {} }).json<any>();
+
+export const listUsers = (jwt: string) =>
+  api.get('users', { headers: { Authorization: `Bearer ${jwt}` } }).json<any[]>();
+
+export const getUser = (id: string | number, jwt: string) =>
+  api.get(`users/${id}`, { headers: { Authorization: `Bearer ${jwt}` } }).json<any>();
+
+export const searchUsers = (query: any, jwt: string) =>
+  postJson<any[]>('users/search', query);
+
+export const updateUser = (id: string | number, data: any, jwt: string) =>
+  api.put(`users/${id}`, { json: data, headers: { Authorization: `Bearer ${jwt}` } }).json<any>();
+
+export const deleteUser = (id: string | number, jwt: string) =>
+  api.delete(`users/${id}`, { headers: { Authorization: `Bearer ${jwt}` } }).json<any>();
+
+// --- VENDOR ---
+export const createVendor = (data: any, jwt?: string) =>
+  api.post('vendor', { json: data, headers: jwt ? { Authorization: `Bearer ${jwt}` } : {} }).json<any>();
+
+export const getVendor = (id: string | number, jwt: string) =>
+  api.get(`vendor/${id}`, { headers: { Authorization: `Bearer ${jwt}` } }).json<any>();
+
+// --- MEDIA ---
+export const uploadMedia = (data: any, jwt?: string) =>
+  api.post('media/upload', { json: data, headers: jwt ? { Authorization: `Bearer ${jwt}` } : {} }).json<any>();
