@@ -1,7 +1,7 @@
 // components/AuthForm.jsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -16,10 +16,14 @@ const AuthForm = ({ type = 'login' }) => {
     age: '',
     region: ''
   });
-  const [step, setStep] = useState(1); // 1: identifier input, 2: OTP input
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [countdown, setCountdown] = useState(0);
+  const [autoSubmitting, setAutoSubmitting] = useState(false);
+  
+  const otpInputRefs = useRef([]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -34,10 +38,17 @@ const AuthForm = ({ type = 'login' }) => {
     }));
   };
 
+  const storeAuthData = (token, userData) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 24 * 7}`;
+  };
+
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccess('');
     
     // Basic validation
     if (!authData.identifier) {
@@ -59,33 +70,212 @@ const AuthForm = ({ type = 'login' }) => {
     }
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      let endpoint = type === 'login' ? 'login' : 'register';
+      let payload = {};
       
-      // In a real app, you would call your API here:
-      // const endpoint = type === 'login' ? 'login' : 'register';
-      // const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/${endpoint}`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     ...(type === 'register' && {
-      //       firstName: authData.firstName,
-      //       lastName: authData.lastName,
-      //       age: authData.age,
-      //       region: authData.region,
-      //       [authData.mode === 'email' ? 'email' : 'phone']: authData.identifier
-      //     }),
-      //     ...(type === 'login' && {
-      //       identifier: authData.identifier,
-      //       mode: authData.mode
-      //     })
-      //   }),
-      // });
+      if (type === 'register') {
+        payload = {
+          email: authData.mode === 'email' ? authData.identifier : '',
+          phone: authData.mode === 'mobile' ? authData.identifier : '',
+          firstName: authData.firstName,
+          lastName: authData.lastName,
+          age: authData.age,
+          region: authData.region,
+          mode: authData.mode
+        };
+      } else {
+        payload = {
+          identifier: authData.identifier,
+          mode: authData.mode
+        };
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Something went wrong');
+      }
+
+      if (type === 'register') {
+        setStep(2);
+        setSuccess(data.message || 'OTP sent successfully!');
+        setCountdown(30);
+        
+        const timer = setInterval(() => {
+          setCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      } else {
+        if (data.access_token) {
+          storeAuthData(data.access_token, data.user);
+          router.push('/dashboard');
+        } else {
+          setStep(2);
+          setSuccess(data.message || 'OTP sent successfully!');
+          setCountdown(30);
+          
+          const timer = setInterval(() => {
+            setCountdown(prev => {
+              if (prev <= 1) {
+                clearInterval(timer);
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+        }
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to send OTP. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (otpValue = null) => {
+    const otpToVerify = otpValue || authData.otp;
+    
+    if (!otpToVerify || otpToVerify.length !== 6) {
+      setError('Please enter a valid 6-digit OTP');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setAutoSubmitting(true);
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          identifier: authData.identifier,
+          mode: authData.mode,
+          otp: otpToVerify
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Invalid OTP');
+      }
+
+      if (data.access_token && data.user) {
+        storeAuthData(data.access_token, data.user);
+        router.push('/dashboard');
+      } else {
+        throw new Error('Authentication failed: No token received');
+      }
+    } catch (err) {
+      setError(err.message || 'Invalid OTP. Please try again.');
       
-      setStep(2);
-      setCountdown(30); // 30 seconds countdown
+      // Reset OTP fields on failure
+      setAuthData(prev => ({ ...prev, otp: '' }));
       
-      // Start countdown timer
+      // Clear all OTP input fields
+      if (otpInputRefs.current) {
+        otpInputRefs.current.forEach(input => {
+          if (input) input.value = '';
+        });
+      }
+      
+      // Focus on first OTP input
+      if (otpInputRefs.current[0]) {
+        otpInputRefs.current[0].focus();
+      }
+    } finally {
+      setLoading(false);
+      setAutoSubmitting(false);
+    }
+  };
+
+  const handleOtpInputChange = (index, value) => {
+    if (/^\d?$/.test(value)) {
+      const newOtp = authData.otp.split('');
+      newOtp[index] = value;
+      const updatedOtp = newOtp.join('');
+      
+      setAuthData(prev => ({ ...prev, otp: updatedOtp }));
+
+      // Auto focus to next input
+      if (value && index < 5) {
+        document.getElementById(`otp-${index + 1}`)?.focus();
+      }
+
+      // Auto submit when last digit is entered
+      if (index === 5 && value && updatedOtp.length === 6) {
+        handleVerifyOtp(updatedOtp);
+      }
+    }
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    // Handle backspace to focus previous input
+    if (e.key === 'Backspace' && !authData.otp[index] && index > 0) {
+      document.getElementById(`otp-${index - 1}`)?.focus();
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (countdown > 0) return;
+    
+    setLoading(true);
+    setError('');
+    
+    try {
+      let endpoint = type === 'login' ? 'login' : 'register';
+      let payload = {};
+      
+      if (type === 'register') {
+        payload = {
+          email: authData.mode === 'email' ? authData.identifier : '',
+          phone: authData.mode === 'mobile' ? authData.identifier : '',
+          firstName: authData.firstName,
+          lastName: authData.lastName,
+          age: authData.age,
+          region: authData.region,
+          mode: authData.mode
+        };
+      } else {
+        payload = {
+          identifier: authData.identifier,
+          mode: authData.mode
+        };
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to resend OTP');
+      }
+
+      setSuccess(data.message || 'OTP sent successfully!');
+      setCountdown(30);
+      
       const timer = setInterval(() => {
         setCountdown(prev => {
           if (prev <= 1) {
@@ -95,72 +285,14 @@ const AuthForm = ({ type = 'login' }) => {
           return prev - 1;
         });
       }, 1000);
-      
     } catch (err) {
-      setError('Failed to send OTP. Please try again.');
+      setError(err.message || 'Failed to resend OTP. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    
-    if (!authData.otp || authData.otp.length !== 6) {
-      setError('Please enter a valid 6-digit OTP');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      // Simulate API verification
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // In a real app, you would call your API here:
-      // const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     identifier: authData.identifier,
-      //     mode: authData.mode,
-      //     otp: authData.otp
-      //   }),
-      // });
-      
-      // On success, redirect to dashboard
-      router.push('/dashboard');
-    } catch (err) {
-      setError('Invalid OTP. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResendOtp = () => {
-    if (countdown > 0) return;
-    
-    setCountdown(30);
-    setError('');
-    
-    // Start countdown timer
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    
-    // In a real app, you would call your API here to resend OTP
   };
 
   const handleSocialLogin = (provider) => {
-    // Placeholder for social login functionality
-    console.log(`Logging in with ${provider}`);
     setError(`${provider} login will be implemented soon`);
   };
 
@@ -175,18 +307,31 @@ const AuthForm = ({ type = 'login' }) => {
             {step === 1 
               ? type === 'login' 
                 ? `Enter your ${authData.mode === 'email' ? 'email' : 'phone number'} to continue` 
-                : `Start planning your dream wedding`
+                : `Create your account to start planning your dream wedding`
               : `Enter the OTP sent to your ${authData.mode === 'email' ? 'email' : 'phone'}`}
           </p>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg animate-pulse">
+          <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg">
             {error}
           </div>
         )}
 
-        <form onSubmit={step === 1 ? handleSendOtp : handleVerifyOtp}>
+        {success && (
+          <div className="mb-4 p-3 bg-green-50 text-green-600 rounded-lg">
+            {success}
+          </div>
+        )}
+
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          if (step === 1) {
+            handleSendOtp(e);
+          } else {
+            handleVerifyOtp();
+          }
+        }}>
           {step === 1 ? (
             <div className="space-y-4">
               {type === 'register' && (
@@ -331,26 +476,17 @@ const AuthForm = ({ type = 'login' }) => {
                 {[0, 1, 2, 3, 4, 5].map((index) => (
                   <input
                     key={index}
+                    ref={(el) => (otpInputRefs.current[index] = el)}
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
                     maxLength="1"
-                    className="w-12 h-12 text-center text-xl font-semibold border border-gray-300 rounded-lg focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-200"
+                    className="w-12 h-12 text-center text-xl font-semibold border border-gray-300 rounded-lg focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-200 text-black"
                     value={authData.otp[index] || ''}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (/^\d?$/.test(value)) {
-                        const newOtp = authData.otp.split('');
-                        newOtp[index] = value;
-                        setAuthData(prev => ({ ...prev, otp: newOtp.join('') }));
-                        
-                        // Auto focus to next input
-                        if (value && index < 5) {
-                          document.getElementById(`otp-${index + 1}`)?.focus();
-                        }
-                      }
-                    }}
+                    onChange={(e) => handleOtpInputChange(index, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(index, e)}
                     id={`otp-${index}`}
+                    disabled={loading || autoSubmitting}
                   />
                 ))}
               </div>
@@ -359,7 +495,7 @@ const AuthForm = ({ type = 'login' }) => {
                 <button
                   type="button"
                   onClick={handleResendOtp}
-                  disabled={countdown > 0}
+                  disabled={countdown > 0 || loading}
                   className={`text-sm ${countdown > 0 ? 'text-gray-500' : 'text-rose-600 hover:text-rose-500'}`}
                 >
                   {countdown > 0 ? `Resend code in ${countdown}s` : 'Resend code'}
@@ -368,10 +504,10 @@ const AuthForm = ({ type = 'login' }) => {
 
               <button
                 type="submit"
-                disabled={loading || authData.otp.length !== 6}
+                disabled={loading || autoSubmitting || authData.otp.length !== 6}
                 className="w-full py-4 text-white bg-rose-500 rounded-2xl hover:bg-rose-600 transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-rose-200 disabled:opacity-50"
               >
-                {loading ? (
+                {loading || autoSubmitting ? (
                   <span className="flex items-center justify-center">
                     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -388,6 +524,7 @@ const AuthForm = ({ type = 'login' }) => {
                 type="button"
                 onClick={() => setStep(1)}
                 className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                disabled={loading || autoSubmitting}
               >
                 ← Back
               </button>

@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { validateToken } from '@/lib/api';
+import { validateToken, refreshToken } from '@/lib/api';
 
 interface User {
   id: string;
@@ -21,34 +21,59 @@ export function useAuth() {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
 
-    validateToken(token)
-      .then((response) => {
-        if (response.success) {
-          setUser(response.user);
-        } else {
-          localStorage.removeItem('token');
-          router.push('/auth/login');
-        }
-      })
-      .catch(() => {
-        localStorage.removeItem('token');
-        router.push('/auth/login');
-      })
-      .finally(() => {
+      if (!token) {
         setLoading(false);
-      });
+        router.push('/login');
+        return;
+      }
+
+      try {
+        const validationResult = await validateToken(token);
+
+        if (validationResult.valid && validationResult.user) {
+          setUser(validationResult.user);
+          setLoading(false);
+          return;
+        }
+
+        const refreshResult = await refreshToken(token);
+
+        if (refreshResult?.access_token) {
+          localStorage.setItem('token', refreshResult.access_token);
+          const newValidation = await validateToken(refreshResult.access_token);
+          if (newValidation.valid && newValidation.user) {
+            setUser(newValidation.user);
+            setLoading(false);
+            return;
+          }
+        }
+
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        router.push('/login');
+      } catch (error) {
+        console.error('Auth check error:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        router.push('/login');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
   }, [router]);
+
 
   const logout = () => {
     localStorage.removeItem('token');
-    setUser(null);
-    router.push('/auth/login');
+    localStorage.removeItem('user');
+    // Clear cookie
+    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    router.push('/login');
   };
 
   return { user, loading, logout };

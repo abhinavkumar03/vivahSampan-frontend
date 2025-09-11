@@ -1,9 +1,9 @@
 'use client';
 
-import { useAuth } from '@/hooks/useAuth';
+// import { useAuth } from '@/hooks/useAuth';
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  // const { user } = useAuth();
 
   return (
     <div className="space-y-6">

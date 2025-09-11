@@ -23,27 +23,14 @@ export const getJson = <T>(url: string, jwt?: string) =>
 export default api;
 
 // --- AUTH ---
-export const sendOtp = (payload: { email?: string; phone?: string; mode: 'login' | 'signup' }) =>
-  postJson<{ success: boolean; message: string }>('auth/send-otp', payload);
-
-export const verifyOtp = (payload: { email?: string; phone?: string; otp: string; mode: 'login' | 'signup'; name?: string }) =>
-  postJson<{ success: boolean; message: string; access_token?: string }>('auth/verify-otp', payload);
-
-export const loginOtp = (email: string, otp: string) =>
-  postJson<{ access_token: string }>('auth/login-otp', { email, otp });
-
-export const loginSocial = (provider: string, token: string) =>
-  postJson<{ access_token: string }>('auth/login-social', { provider, token });
-
 export const validateToken = (token: string) =>
-  postJson<any>('auth/validate', { token });
+  postJson<{ valid: boolean; user?: any }>('auth/validate-token', { token });
+
+export const refreshToken = (token: string) =>
+  postJson<{ access_token: string }>('auth/refresh-token', { token });
 
 export const logout = (jwt: string) =>
   api.post('auth/logout', { headers: { Authorization: `Bearer ${jwt}` } }).json<{ success: boolean }>();
-
-// --- AUTHORIZATION ---
-export const checkAccess = (userId: string | number, resourceId: string | number, jwt: string) =>
-  api.get(`auth/authorize/${userId}/${resourceId}`, { headers: { Authorization: `Bearer ${jwt}` } }).json<{ result: string }>();
 
 // --- USER ---
 export const createUser = (data: any, jwt?: string) =>
