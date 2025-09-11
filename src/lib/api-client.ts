@@ -34,7 +34,7 @@ export class ApiClient {
 
     if (response.status === 401) {
       TokenService.removeToken();
-      window.location.href = '/auth/login';
+      window.location.href = '/login';
       throw new Error('Unauthorized');
     }
 

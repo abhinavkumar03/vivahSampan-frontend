@@ -39,7 +39,7 @@ export const getAuthHeaders = () => {
 export const handleAuthError = (error: any) => {
   if (error.response?.status === 401) {
     TokenService.removeToken();
-    window.location.href = '/auth/login';
+    window.location.href = '/login';
   }
   throw error;
 };
