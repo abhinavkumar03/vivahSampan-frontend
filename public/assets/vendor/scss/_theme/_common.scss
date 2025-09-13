@@ -1,0 +1,266 @@
+// Theme mixin
+// *******************************************************************************
+
+@mixin template-common-theme($background, $color: null) {
+    @include text-variant(".text-primary", $background);
+    @include bg-variant(".bg-primary", $background);
+    @include bg-label-variant(".bg-label-primary", $background);
+    @include bg-label-hover-variant(".bg-label-hover-primary", $background);
+    @include bg-gradient-variant(".bg-gradient-primary", $background);
+    @include template-pagination-theme($background, $color);
+    @include template-pagination-outline-variant(
+        ".pagination-outline-primary",
+        $background
+    );
+    @include template-modal-onboarding-theme($background, $color);
+    @include template-list-group-theme($background, $color);
+    @include template-list-group-timeline-variant(
+        ".list-group-timeline-primary",
+        $background
+    );
+    @include template-alert-variant(".alert-primary", $background);
+    @include template-alert-outline-variant(
+        ".alert-outline-primary",
+        $background,
+        $color
+    );
+    @include template-alert-solid-variant(
+        ".alert-solid-primary",
+        $background,
+        $color
+    );
+    @include template-accordion-header-variant(
+        ".accordion-header-primary",
+        $background
+    );
+    @include template-tooltip-variant(
+        ".tooltip-primary, .tooltip-primary > .tooltip",
+        $background,
+        $color
+    );
+    @include template-popover-variant(
+        ".popover-primary, .popover-primary > .popover",
+        $background,
+        $color
+    );
+
+    // Need to add shift-color as BS5 updated with table variant colors like this
+
+    @include template-table-variant(
+        "primary",
+        shift-color($background, $table-bg-scale)
+    );
+    @include template-button-variant(".btn-primary", $background, $color);
+    @include template-button-label-variant(
+        ".btn-label-primary",
+        $background,
+        $color
+    );
+    @include template-button-text-variant(
+        ".btn-text-primary",
+        $background,
+        $color
+    );
+    @include template-button-outline-variant(
+        ".btn-outline-primary",
+        $background,
+        $color
+    );
+    @include template-dropdown-theme(
+        rgba-to-hex(rgba($background, 0.16), $rgba-to-hex-bg),
+        $background
+    );
+    @include template-nav-theme($background, $color);
+    @include template-form-control-theme($background);
+    @include template-form-check-theme($background, $color);
+    @include template-form-switch-theme($background);
+    @include template-file-input-theme($background);
+
+    @include template-material-form-range-variant("", $background);
+    @include template-material-switch-variant(
+        "",
+        $background,
+        $color
+    ); // For default switch
+    @include template-material-switch-variant(
+        ".switch-primary",
+        $background,
+        $color
+    );
+
+    @include template-timeline-point-variant(
+        ".timeline-point-primary",
+        $background
+    );
+    @include template-timeline-indicator-variant(
+        ".timeline-indicator-primary",
+        $background
+    );
+    @include template-text-divider-variant(".divider-primary", $background);
+
+    @include template-navbar-style(".navbar.bg-primary", $background);
+    @include template-menu-style(".menu.bg-primary", $background);
+    @include template-footer-style(".footer.bg-primary", $background);
+    @include template-float-label-theme($background);
+    @include template-svg-color($background);
+    @include template-treeview-clicked-bg($background);
+    @include template-card-border-shadow-variant(
+        ".card-border-shadow-primary",
+        $background
+    );
+    @include template-card-hover-border-variant(
+        ".card-hover-border-primary",
+        $background
+    );
+
+    html:not([dir="rtl"]) .border-primary,
+    html[dir="rtl"] .border-primary {
+        border-color: $background !important;
+    }
+    a {
+        color: $background;
+        &:hover {
+            color: tint-color($background, 10%);
+        }
+    }
+    .fill-primary {
+        fill: $background;
+    }
+}
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+        "Noto Color Emoji";
+}
+
+.mobile-view {
+    display: none !important;
+}
+.table-sizes {
+    max-height: 435px !important;
+}
+
+.head-top {
+    position: sticky;
+}
+
+.display-mobile {
+    display: none !important;
+}
+
+.align-kanban {
+    display: flex;
+}
+
+.green-bg-color {
+    background: green;
+}
+
+.violet-bg-color {
+    background: violet;
+}
+
+.red-bg-color {
+    background: red;
+}
+
+.blue-bg-color {
+    background: blue;
+}
+
+.yellow-bg-color {
+    background: yellow;
+}
+.filter-width {
+    width: 25%;
+}
+
+.content-width {
+    width: 75%;
+}
+.all-table-size {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+.cursor-enabled .cursor-second-column-enabled{
+    position: sticky;
+    z-index: 1;
+    left: 25px;
+    background-color: #f5f5f7;
+}
+
+.cursor-enabled .cursor-first-column-enabled{
+    position: sticky;
+    z-index: 1;
+    left: -13px;
+    background-color: #f5f5f7;
+}
+.transition-box {
+    align-items: center;
+}
+.filter-height {
+    max-width: 83vh;
+}
+.heading-font {
+    font-weight: 500 !important;
+}
+.dropdown-filter {
+    height: 38px;
+    width: 38px;
+}
+.data-card {
+    max-height: 83vh;
+    overflow: scroll;
+}
+
+@media only screen and (max-width: 992px) {
+    .expand-btn {
+        display: none;
+        margin: 10px auto;
+        text-align: center;
+        cursor: pointer;
+        font-weight: bold;
+        background: #666cff;
+        color: white;
+    }
+    .content-width {
+        width: 100%;
+    }
+    .mobile-kanban-container {
+        display: flex;
+        justify-content: center;
+        margin-left: 5px;
+    }
+    .navigate-view-buttons {
+        padding: 6px;
+    }
+    .transition-box {
+        align-items: start;
+        margin-top: 10px;
+    }
+    .transition-text {
+        margin-top: 10px;
+    }
+
+    .expandable-height {
+        height: 210px;
+        overflow-y: auto;
+        transition: height 0.3s ease;
+    }
+
+    .expanded {
+        height: 600px;
+    }
+
+    .align-kanban {
+        display: block;
+    }
+    .dekstop-view {
+        display: none !important;
+    }
+
+    .mobile-view {
+        display: block !important;
+    }
+}

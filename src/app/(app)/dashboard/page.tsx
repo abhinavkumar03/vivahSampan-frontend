@@ -1,9 +1,31 @@
 'use client';
 
-// import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function DashboardPage() {
-  // const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    // Check if user is admin and redirect to admin dashboard
+    if (!loading && user && user.role === 'admin') {
+      router.push('/admin');
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-pink-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect to login in useAuth
+  }
 
   return (
     <div className="space-y-6">
