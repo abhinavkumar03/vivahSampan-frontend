@@ -66,7 +66,6 @@ export function useAuth() {
     checkAuth();
   }, [router]);
 
-
   const logout = async () => {
     try {
       await authAPI.logout();
@@ -78,5 +77,7 @@ export function useAuth() {
     }
   };
 
-  return { user, loading, logout };
+  const authenticated = !!user;
+
+  return { user, loading, logout, authenticated };
 }

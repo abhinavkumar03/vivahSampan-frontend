@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getVendor } from '@/lib/api';
+// import { getVendor } from '@/lib/api';
 import Button from '@/components/ui/button';
 
 export default function VendorsPage() {
@@ -9,7 +9,7 @@ export default function VendorsPage() {
   useEffect(() => {
     // Example: fetch vendor with id 1, extend for list
     const jwt = localStorage.getItem('jwt') || '';
-    getVendor(1, jwt).then(v => setVendors([v]));
+    // getVendor(1, jwt).then(v => setVendors([v]));
   }, []);
   return (
     <div className="p-4 max-w-3xl mx-auto">

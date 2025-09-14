@@ -9,9 +9,12 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if user is admin and redirect to admin dashboard
-    if (!loading && user && user.role === 'admin') {
-      router.push('/admin');
+    if (loading) return;
+
+    if (!user) {
+      router.push('/login');
+    } else if (user.role === 'ADMIN' && window.location.pathname !== '/admin-dashboard') {
+      router.push('/admin-dashboard');
     }
   }, [user, loading, router]);
 
@@ -22,9 +25,9 @@ export default function DashboardPage() {
       </div>
     );
   }
-
+  
   if (!user) {
-    return null; // Will redirect to login in useAuth
+    router.push('/login');
   }
 
   return (

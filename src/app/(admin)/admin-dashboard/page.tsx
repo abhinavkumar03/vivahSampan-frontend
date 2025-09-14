@@ -2,47 +2,93 @@
 
 import { useAuth } from '@/hooks/useAuth';
 import { useEffect, useState } from 'react';
-import { adminAPI } from '@/lib/api';
+import { useRouter } from 'next/navigation';
+
+// Dummy API function
+const adminAPI = {
+  getDashboardStats: async () => {
+    console.log('[DEBUG] adminAPI.getDashboardStats called');
+    // simulate network delay
+    await new Promise(res => setTimeout(res, 500));
+    return {
+      totalUsers: 1000,
+      totalVendors: 50,
+      totalEvents: 200,
+      totalRevenue: 5000000,
+    };
+  },
+};
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalVendors: 0,
     totalEvents: 0,
     totalRevenue: 0,
   });
-  const [loading, setLoading] = useState(true);
+  const [loadingStats, setLoadingStats] = useState(true);
+    console.log('[DEBUG] check');
+  // Auth & role check
+  useEffect(() => {
+    console.log('[DEBUG] useEffect auth check', { user, loading });
 
+    if (!loading) {
+      if (!user) {
+        console.log('[DEBUG] User not logged in -> redirect to /login');
+        router.push('/login');
+      } else {
+        console.log('[DEBUG] User logged in', user);
+        // Comment out dashboard redirect for now
+        // if (user.role !== 'ADMIN') {
+        //   console.log('[DEBUG] Non-admin -> redirect to /dashboard');
+        //   router.push('/dashboard');
+        // }
+      }
+    }
+  }, [user, loading, router]);
+
+  // Load dashboard stats
   useEffect(() => {
     const loadDashboardData = async () => {
+      console.log('[DEBUG] loadDashboardData called with user:', user);
       try {
-        const dashboardStats = await adminAPI.getDashboardStats();
-        setStats(dashboardStats);
+        if (user?.role === 'ADMIN') {
+          const dashboardStats = await adminAPI.getDashboardStats();
+          console.log('[DEBUG] Dashboard stats fetched:', dashboardStats);
+          setStats(dashboardStats);
+        } else {
+          console.log('[DEBUG] User not admin, skipping stats load');
+        }
       } catch (error) {
-        console.error('Error loading dashboard stats:', error);
+        console.error('[DEBUG] Error loading dashboard stats:', error);
       } finally {
-        setLoading(false);
+        setLoadingStats(false);
       }
     };
 
     loadDashboardData();
-  }, []);
+  }, [user]);
 
+  // Initialize dashboard scripts
   useEffect(() => {
-    // Initialize dashboard analytics when component mounts
+    console.log('[DEBUG] Initializing dashboard scripts');
     const initDashboard = () => {
-      // This will be handled by the admin template JS files
       if (typeof window !== 'undefined' && window.dashboardsAnalytics) {
+        console.log('[DEBUG] dashboardsAnalytics.init() called');
         window.dashboardsAnalytics.init();
+      } else {
+        console.log('[DEBUG] dashboardsAnalytics not available');
       }
     };
-
-    // Wait for scripts to load
     setTimeout(initDashboard, 1000);
   }, []);
 
-  if (loading) {
+  // Show loading spinner
+  if (loading || loadingStats) {
+    console.log('[DEBUG] Showing loading spinner', { loading, loadingStats });
     return (
       <div className="d-flex align-items-center justify-content-center" style={{ height: '50vh' }}>
         <div className="spinner-border text-primary" role="status">
@@ -50,6 +96,14 @@ export default function AdminDashboard() {
         </div>
       </div>
     );
+  }
+
+  console.log('[DEBUG] Rendering dashboard', { user, stats });
+
+  // Block render if user is not admin
+  if (!user || user.role !== 'ADMIN') {
+    console.log('[DEBUG] User not admin, render nothing');
+    return null;
   }
 
   return (
@@ -222,6 +276,8 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
+
+          {/* System Status */}
           <div className="col-md-6 col-lg-4 col-xl-4 order-1 order-lg-0">
             <div className="card">
               <div className="card-header">
@@ -279,6 +335,8 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
+
+          {/* Recent Activity */}
           <div className="col-md-6 col-lg-4 col-xl-4 order-2">
             <div className="card">
               <div className="card-header">
