@@ -4,6 +4,7 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { TokenService } from '@/lib/auth/token-service';
 
 const AuthForm = ({ type = 'login' }) => {
   const router = useRouter();
@@ -36,12 +37,6 @@ const AuthForm = ({ type = 'login' }) => {
       mode: prev.mode === 'email' ? 'mobile' : 'email',
       identifier: ''
     }));
-  };
-
-  const storeAuthData = (token, userData) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
-    document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 24 * 7}`;
   };
 
   const handleSendOtp = async (e) => {
@@ -119,9 +114,9 @@ const AuthForm = ({ type = 'login' }) => {
           });
         }, 1000);
       } else {
-        if (data.access_token) {
-          storeAuthData(data.access_token, data.user);
-          router.push('/dashboard');
+        if (data.access_token && data.user) {
+          TokenService.setToken(data.access_token); 
+          router.push('/admin-dashboard');
         } else {
           setStep(2);
           setSuccess(data.message || 'OTP sent successfully!');
@@ -177,8 +172,10 @@ const AuthForm = ({ type = 'login' }) => {
       }
 
       if (data.access_token && data.user) {
+        TokenService.setToken(data.access_token); 
         storeAuthData(data.access_token, data.user);
-        router.push('/dashboard');
+
+        router.push('/admin-dashboard');
       } else {
         throw new Error('Authentication failed: No token received');
       }

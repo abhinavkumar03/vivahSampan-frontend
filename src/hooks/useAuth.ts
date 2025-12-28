@@ -3,7 +3,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { validateToken, refreshToken } from '@/lib/api';
+import { authAPI } from '@/lib/api';
+import { TokenService } from '@/lib/auth/token-service';
 
 interface User {
   id: string;
@@ -22,7 +23,7 @@ export function useAuth() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('token');
+      const token = TokenService.getToken();
 
       if (!token) {
         setLoading(false);
@@ -31,7 +32,7 @@ export function useAuth() {
       }
 
       try {
-        const validationResult = await validateToken(token);
+        const validationResult = await authAPI.validateToken(token);
 
         if (validationResult.valid && validationResult.user) {
           setUser(validationResult.user);
@@ -39,11 +40,11 @@ export function useAuth() {
           return;
         }
 
-        const refreshResult = await refreshToken(token);
+        const refreshResult = await authAPI.refreshToken(token);
 
         if (refreshResult?.access_token) {
-          localStorage.setItem('token', refreshResult.access_token);
-          const newValidation = await validateToken(refreshResult.access_token);
+          TokenService.setToken(refreshResult.access_token);
+          const newValidation = await authAPI.validateToken(refreshResult.access_token);
           if (newValidation.valid && newValidation.user) {
             setUser(newValidation.user);
             setLoading(false);
@@ -51,13 +52,11 @@ export function useAuth() {
           }
         }
 
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        TokenService.removeToken();
         router.push('/login');
       } catch (error) {
         console.error('Auth check error:', error);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        TokenService.removeToken();
         router.push('/login');
       } finally {
         setLoading(false);
@@ -67,14 +66,18 @@ export function useAuth() {
     checkAuth();
   }, [router]);
 
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    // Clear cookie
-    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    router.push('/login');
+  const logout = async () => {
+    try {
+      await authAPI.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      TokenService.removeToken();
+      router.push('/login');
+    }
   };
 
-  return { user, loading, logout };
+  const authenticated = !!user;
+
+  return { user, loading, logout, authenticated };
 }

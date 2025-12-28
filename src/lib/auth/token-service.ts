@@ -1,6 +1,6 @@
 // TokenService: Handles JWT token management
 export class TokenService {
-  private static readonly TOKEN_KEY = 'vivahsampan_token';
+  private static readonly TOKEN_KEY = 'token';
 
   static getToken(): string | null {
     if (typeof window === 'undefined') return null;
